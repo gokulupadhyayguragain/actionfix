@@ -1,0 +1,315 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ActionFix - evidence-first GitHub Actions troubleshooting agent.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: ActionFix runtime
+        Parameters:
+          - KiroApiKey
+          - KiroAgentEngine
+          - KiroEffort
+          - AllowedOrigin
+      - Label:
+          default: Cost guardrail (optional)
+        Parameters:
+          - BudgetNotificationEmail
+          - BudgetLimitUsd
+    ParameterLabels:
+      KiroApiKey:
+        default: Kiro API key
+      KiroAgentEngine:
+        default: Kiro CLI agent engine
+      KiroEffort:
+        default: Kiro reasoning effort
+      AllowedOrigin:
+        default: Browser origin allowed by the API
+      BudgetNotificationEmail:
+        default: Optional budget alert email
+      BudgetLimitUsd:
+        default: Monthly budget limit (USD)
+
+Parameters:
+  KiroApiKey:
+    Type: String
+    NoEcho: true
+    MinLength: 10
+    Description: Kiro API key passed securely to Secrets Manager during deployment.
+  KiroAgentEngine:
+    Type: String
+    Default: v2
+    AllowedValues:
+      - v2
+      - v3
+    Description: Kiro CLI headless agent engine.
+  KiroEffort:
+    Type: String
+    Default: low
+    AllowedValues:
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+    Description: Kiro CLI reasoning effort; low limits latency and subscription-token use.
+  AllowedOrigin:
+    Type: String
+    Default: '*'
+    Description: CORS origin. Use the deployed CloudFront URL for a tighter policy after the first deployment.
+  BudgetNotificationEmail:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^[^@\s]+@[^@\s]+\.[^@\s]+$'
+    ConstraintDescription: Leave blank to skip the optional budget or provide a valid email address.
+    Description: Optional address for an 80 percent forecasted monthly budget alert.
+  BudgetLimitUsd:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    Description: Monthly AWS cost alert threshold when a budget email is supplied.
+
+Conditions:
+  HasBudgetEmail: !Not [!Equals [!Ref BudgetNotificationEmail, '']]
+
+Resources:
+  ActionFixApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: '$default'
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref AllowedOrigin
+        AllowHeaders:
+          - content-type
+        AllowMethods:
+          - POST
+          - OPTIONS
+
+  ActionFixKiroSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Description: !Sub Kiro API key for ${AWS::StackName}; managed and deleted with the stack.
+      Name: !Sub ${AWS::StackName}/kiro-api-key
+      SecretString: !Ref KiroApiKey
+      Tags:
+        - Key: Project
+          Value: ActionFix
+        - Key: Purpose
+          Value: KiroHeadlessRuntime
+
+  ActionFixFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ../backend/
+      DockerTag: actionfix-kiro
+    Properties:
+      PackageType: Image
+      MemorySize: 1024
+      Timeout: 29
+      Description: Validates logs, runs deterministic ActionFix tools, and asks the Kiro CLI headless runtime for bounded prose.
+      Environment:
+        Variables:
+          KIRO_API_KEY_SECRET_ARN: !Ref ActionFixKiroSecret
+          KIRO_AGENT_ENGINE: !Ref KiroAgentEngine
+          KIRO_EFFORT: !Ref KiroEffort
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          KIRO_TIMEOUT_SECONDS: '26'
+          RATE_LIMIT_PER_MINUTE: '20'
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: ReadKiroApiKey
+              Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource:
+                - !Ref ActionFixKiroSecret
+      Events:
+        Diagnose:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ActionFixApi
+            Path: /diagnose
+            Method: POST
+            PayloadFormatVersion: '2.0'
+
+  ActionFixLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ActionFixFunction}
+      RetentionInDays: 14
+      Tags:
+        - Key: Project
+          Value: ActionFix
+
+  ActionFixSiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: ActionFix
+        - Key: Purpose
+          Value: StaticSite
+
+  ActionFixSiteOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Description: OAC for the private ActionFix static site bucket.
+        Name: !Sub ${AWS::StackName}-site-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  ActionFixDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub ${AWS::StackName} HTTPS frontend and API edge
+        Enabled: true
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+        DefaultRootObject: index.html
+        Origins:
+          - Id: ActionFixSiteOrigin
+            DomainName: !GetAtt ActionFixSiteBucket.RegionalDomainName
+            OriginAccessControlId: !Ref ActionFixSiteOriginAccessControl
+            S3OriginConfig: {}
+          - Id: ActionFixApiOrigin
+            DomainName: !Sub ${ActionFixApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+        DefaultCacheBehavior:
+          TargetOriginId: ActionFixSiteOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+        CacheBehaviors:
+          - PathPattern: /diagnose*
+            TargetOriginId: ActionFixApiOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - PATCH
+              - POST
+              - DELETE
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            DefaultTTL: 0
+            MinTTL: 0
+            MaxTTL: 0
+            ForwardedValues:
+              QueryString: true
+              Headers:
+                - Content-Type
+                - Origin
+                - Access-Control-Request-Headers
+                - Access-Control-Request-Method
+              Cookies:
+                Forward: none
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+
+  ActionFixSiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ActionFixSiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontServiceRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${ActionFixSiteBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${ActionFixDistribution}
+
+  ActionFixBudget:
+    Type: AWS::Budgets::Budget
+    Condition: HasBudgetEmail
+    Properties:
+      Budget:
+        BudgetLimit:
+          Amount: !Ref BudgetLimitUsd
+          Unit: USD
+        BudgetName: !Sub ${AWS::StackName}-monthly
+        BudgetType: COST
+        TimeUnit: MONTHLY
+      NotificationsWithSubscribers:
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref BudgetNotificationEmail
+              SubscriptionType: EMAIL
+
+Outputs:
+  SiteUrl:
+    Description: HTTPS URL for the deployed ActionFix frontend.
+    Value: !Sub https://${ActionFixDistribution.DomainName}
+  CloudFrontDistributionId:
+    Description: Distribution ID used for cache invalidation and teardown.
+    Value: !Ref ActionFixDistribution
+  SiteBucketName:
+    Description: Private S3 bucket receiving the static frontend files.
+    Value: !Ref ActionFixSiteBucket
+  ApiEndpoint:
+    Description: Direct HTTP API endpoint; the frontend normally uses the same-origin CloudFront route.
+    Value: !Sub https://${ActionFixApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
+  KiroAgentEngine:
+    Description: Kiro CLI headless engine used by the Lambda container.
+    Value: !Ref KiroAgentEngine
+  KiroEffort:
+    Description: Kiro CLI reasoning effort used by the Lambda container.
+    Value: !Ref KiroEffort

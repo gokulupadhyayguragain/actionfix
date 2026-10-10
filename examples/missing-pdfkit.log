@@ -1,0 +1,10 @@
+Run node scripts/generate-report.js
+node:internal/modules/cjs/loader:1228
+  throw err;
+  ^
+Error: Cannot find module 'pdfkit'
+Require stack:
+- /home/runner/work/report/scripts/generate-report.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+Node.js v20.11.1
+Error: Process completed with exit code 1.

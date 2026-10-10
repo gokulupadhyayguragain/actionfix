@@ -1,0 +1,2 @@
+# The AWS Lambda Python 3.12 runtime supplies boto3. Keeping this file dependency-free
+# makes the SAM artifact small and keeps the local deterministic path runnable offline.

@@ -1,0 +1,3 @@
+Run node scripts/generate-report.js
+Error: ENOENT: no such file or directory, open 'scripts/config.json'
+Error: Process completed with exit code 1.

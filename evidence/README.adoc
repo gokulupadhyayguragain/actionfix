@@ -1,0 +1,5 @@
+= ActionFix Evidence
+
+Keep only genuine, redacted screenshots and test notes here. Do not store credentials, tokens, private workflow logs, or fabricated deployment evidence.
+
+The implementation and deployment scripts are in `frontend/`, `backend/`, and `infra/`. Capture public URL, AWS region, model ID, and measured scenario results only after a real deployment and test run.

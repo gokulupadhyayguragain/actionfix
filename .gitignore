@@ -1,0 +1,12 @@
+.aws-sam/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+.DS_Store
+
+# Real evidence may contain sensitive logs; keep captures out of source control by default.
+evidence/screenshots/*

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="ActionFix explains failed GitHub Actions workflows with evidence and one safe first step." />
+    <title>ActionFix — Understand a failed workflow</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="/" aria-label="ActionFix home">
+          <span class="brand-mark" aria-hidden="true">A</span>
+          <span>ActionFix</span>
+        </a>
+        <p class="header-tagline">Understand a failed workflow in seconds.</p>
+      </div>
+    </header>
+
+    <main id="main-content" class="shell">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">GitHub Actions troubleshooting</p>
+        <h1 id="page-title">GitHub Actions failed?<br /><span>Paste the red part.</span></h1>
+        <p class="intro-copy">
+          ActionFix finds the strongest signal in your log, explains what it means, and gives you one safe place to start.
+          It never needs access to your repository or credentials.
+        </p>
+      </section>
+
+      <section class="workspace-grid" aria-label="Diagnosis workspace">
+        <form id="diagnosis-form" class="panel input-panel" novalidate>
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Step 1</p>
+              <h2>Show me the failure</h2>
+            </div>
+            <span class="privacy-pill">Private by design</span>
+          </div>
+
+          <div class="examples" aria-labelledby="examples-label">
+            <span id="examples-label" class="field-label">Try an example</span>
+            <div class="chip-row">
+              <button class="chip" type="button" data-example="dependency">Missing npm dependency</button>
+              <button class="chip" type="button" data-example="checkout">Missing checkout</button>
+              <button class="chip" type="button" data-example="permissions">Permission denied</button>
+              <button class="chip" type="button" data-example="unclear">Only exit code 1</button>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label-row">
+              <label class="field-label" for="logs">Error logs <span class="required">Required</span></label>
+              <span id="log-count" class="character-count">0 / 12,000</span>
+            </div>
+            <textarea id="logs" name="log" rows="11" maxlength="12000" required placeholder="Paste the failing lines from GitHub Actions here…"></textarea>
+            <p class="field-help">Include the first useful error line and the command that failed.</p>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label-row">
+              <label class="field-label" for="workflow">Workflow YAML <span class="optional">Optional</span></label>
+              <span id="workflow-count" class="character-count">0 / 8,000</span>
+            </div>
+            <textarea id="workflow" name="workflow" rows="8" maxlength="8000" placeholder="Paste the relevant .github/workflows/*.yml step if you have it…"></textarea>
+            <p class="field-help">ActionFix reads this as text only. It will never execute your workflow.</p>
+          </div>
+
+          <div class="field-group compact-field">
+            <label class="field-label" for="question">Have a follow-up question? <span class="optional">Optional</span></label>
+            <input id="question" name="question" maxlength="500" placeholder="e.g. Why does checkout matter?" />
+          </div>
+
+          <div class="form-actions">
+            <button id="submit-button" class="primary-button" type="submit">
+              <span class="button-label">Explain failure</span>
+              <span class="button-spinner" aria-hidden="true"></span>
+            </button>
+            <button id="clear-button" class="text-button" type="button">Clear</button>
+          </div>
+          <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
+        </form>
+
+        <section id="result-panel" class="panel result-panel" aria-labelledby="result-heading" hidden>
+          <div class="panel-heading result-heading-row">
+            <div>
+              <p class="eyebrow">Step 2</p>
+              <h2 id="result-heading">One Fix First</h2>
+            </div>
+            <span id="confidence-badge" class="confidence-badge">Confidence</span>
+          </div>
+
+          <div id="model-notice" class="model-notice" hidden></div>
+
+          <div class="result-flow">
+            <article class="result-card problem-card">
+              <div class="card-kicker"><span class="step-number">1</span> Problem</div>
+              <p id="result-problem" class="result-lead"></p>
+              <div class="evidence-box">
+                <div class="evidence-label">Evidence from your log</div>
+                <blockquote id="result-evidence"></blockquote>
+              </div>
+            </article>
+
+            <article class="result-card fix-card">
+              <div class="card-kicker"><span class="step-number">2</span> First fix</div>
+              <p id="result-first-fix" class="result-lead"></p>
+              <div id="command-list" class="command-list" aria-label="Suggested commands"></div>
+            </article>
+
+            <article class="result-card verify-card">
+              <div class="card-kicker"><span class="step-number">3</span> Verify</div>
+              <p id="result-verify" class="result-lead"></p>
+            </article>
+          </div>
+
+          <details class="why-details">
+            <summary>Why does this work?</summary>
+            <p id="result-why"></p>
+          </details>
+          <div id="more-info-box" class="more-info-box" hidden>
+            <strong>One detail would help:</strong>
+            <span id="result-question"></span>
+          </div>
+          <p id="result-disclaimer" class="disclaimer"></p>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-inner">
+        <p><strong>ActionFix</strong> is read-only troubleshooting help, not a guarantee of correctness.</p>
+        <p class="privacy-note">Do not paste passwords, API keys, tokens, or confidential logs.</p>
+      </div>
+    </footer>
+
+    <script>
+      window.ACTIONFIX_CONFIG = window.ACTIONFIX_CONFIG || { apiUrl: "" };
+    </script>
+    <script src="/main.js" defer></script>
+  </body>
+</html>

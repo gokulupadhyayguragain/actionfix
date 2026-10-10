@@ -1,0 +1,100 @@
+= Weekend Challenge: ActionFix, the Friendly Agent That Explains Failed GitHub Actions
+:toc:
+:sectnums:
+:revdate: 2026-10-10
+
+[NOTE]
+==== AUTHOR'S PUBLICATION CHECKLIST — REMOVE THIS NOTE BEFORE PUBLISHING
+This is a *publication-ready STRUCTURE and proposed narrative*, not a claim that the app has already been built. All items marked `TODO` must be replaced with real, verifiable facts after building and testing. Remove any statement that the final app does not support. The draft body contains more than 500 words, but count the final published article after edits. Builder Center may use a Markdown-rich editor: copy the section content and format headings there; do not assume it renders AsciiDoc directly.
+
+* Add the tag `agents` as required by the challenge announcement and `agent` too if allowed, because the formal terms supplied use the singular version.
+* Publish on the AWS Builder Center challenge page before October 12, 2026 at 1:00 PM PT / October 13, 2026 at 01:45 NPT.
+* Complete Builder Profile photo, country, and About section.
+* Replace the GitHub URL, live URL, screenshots, service names, observations, and dates with actual evidence.
+* Make the GitHub repository PUBLIC and inspect all links without signing in.
+* Verify the deployed agent truly calls AWS and performs the described diagnostic flow.
+====
+
+== Article description / teaser
+A failing GitHub Actions run can feel like a wall of red text. I am building ActionFix to turn that confusion into one understandable next step, with evidence from the logs, a copyable suggestion, and a calm explanation powered by AWS.
+
+== What my agent does — and who it helps
+
+GitHub Actions is one of the easiest ways to start automating software checks and deployments. But when a workflow fails, a beginner may see dozens of lines of output and have no idea where to start. Error messages often assume familiarity with Node.js, package management, permissions, YAML, or GitHub runners. For students learning CI/CD, the actual problem can be smaller than the message makes it look.
+
+That is the situation that inspired *ActionFix*, an agent designed to help students and early-career developers understand a failed GitHub Actions workflow. The goal is not to rewrite someone's entire pipeline or automatically push changes to their repository. The goal is simpler: show what likely failed, point to the exact evidence, and suggest one sensible first check.
+
+The user pastes the failure log and can optionally include the workflow YAML. ActionFix analyzes the input and returns a short response organized around five questions: What happened? Which line supports that conclusion? What should I try first? How do I verify the change? What should I share if the diagnosis is still uncertain?
+
+[TIP]
+==== Real demonstration link — replace before publishing
+Live app: TODO_REAL_LIVE_APP_URL
+
+Public source repository: TODO_REAL_PUBLIC_GITHUB_URL
+====
+
+== How I built it
+
+I designed ActionFix as a small web app backed by AWS, with a deliberate split between deterministic checks and natural-language guidance. The browser is responsible for a friendly input form and readable result cards. An AWS Lambda function handles validation, diagnostic tool selection, and the API response. Amazon Bedrock supplies the language model used to turn a technical diagnosis into a clear explanation.
+
+The diagnostic tools check recognizable failure signatures. For example, `Cannot find module 'pdfkit'` suggests a missing Node.js dependency; a file-not-found error may require checking whether the workflow checked out the repository or used the correct working directory; and an `AccessDenied` message calls for careful examination of the relevant action and permission settings. These checks are evidence, not proof of a complete root cause. The agent must avoid claiming it inspected a repository it never accessed.
+
+The key architectural choice is to keep the diagnosis bounded. A model may be good at explaining an error, but it should not invent details about a workflow. The backend extracts evidence, chooses and runs tools such as `classify_error` and `inspect_workflow`, then asks Bedrock to express the result in plain language. If an error message is too vague, the agent asks for the missing information rather than filling gaps with guesses.
+
+[source,text]
+----
+User -> Web interface -> AWS Lambda endpoint
+                           |-> Validation and redaction
+                           |-> Deterministic diagnostic tools
+                           `-> Amazon Bedrock model
+                                      |
+                               Clear result card
+----
+
+The AWS services used in the implemented deployment are: *TODO_LIST_ACTUAL_AWS_SERVICES*. The model/region combination is *TODO_ACTUAL_MODEL_AND_REGION*. The frontend is hosted at *TODO_ACTUAL_HOSTING_SERVICE_AND_URL*. I deliberately kept AWS permissions narrow so the agent does not need credentials for a user's GitHub account. It works only on the text someone intentionally submits.
+
+One engineering challenge I encountered was *TODO_REAL_CHALLENGE*. I addressed it by *TODO_REAL_RESOLUTION*. Another tradeoff was *TODO_REAL_TRADEOFF*, which influenced my decision to *TODO_ACTUAL_DECISION*. These details matter because building an agent is not just choosing a model: latency, access controls, user input quality, error handling, and cost affect the experience.
+
+== The experience — the one detail I wanted users to enjoy
+
+The feature I care about most is called *One Fix First*. Instead of showing an intimidating wall of generated text, ActionFix presents a short sequence: *Problem -> First fix -> Verify*. The evidence from the log is visible alongside the suggestion, and an optional "Why does this work?" control lets curious users go deeper without overwhelming people who just want their pipeline running again.
+
+I also want the first interaction to work even when someone has no error log ready. Sample failure buttons provide a safe way to explore the interface. A person can select a missing dependency example and immediately see the format of the answer. A copy action minimizes the friction of trying a recommended command or YAML adjustment in their own project.
+
+Just as important is what the agent does when it is not sure. A line such as `Process completed with exit code 1` does not contain enough information for a trustworthy fix. ActionFix is designed to respond with a request for the preceding error lines and the relevant step. To me, an honest request for context is a better experience than a confident but invented answer.
+
+To check whether this design actually helps, I tested *TODO_NUMBER* real or representative scenarios: *TODO_LIST_TEST_CASES*. In those tests, I observed *TODO_ACTUAL_TEST_OUTCOMES*. I also checked *TODO_REAL_UX_OBSERVATIONS*, including whether the first suggested action was visible without scrolling, whether the copy control behaved correctly, and whether the app offered helpful recovery when information was missing. I am including those results rather than assuming that an attractive UI automatically means an enjoyable experience.
+
+== Proof it works
+
+The proof for this challenge should show the actual deployed system, not a mockup. Here are the links and observations from my implementation:
+
+* *Live application:* TODO_REAL_LIVE_APP_URL
+* *Public GitHub source code:* TODO_REAL_PUBLIC_GITHUB_URL
+* *Working agent screenshot or short demonstration video:* TODO_REAL_MEDIA_URL_OR_EMBED
+* *AWS runtime evidence:* TODO_REAL_DEPLOYMENT_EVIDENCE (for example a carefully redacted Lambda screenshot or deployment configuration)
+
+A reproducible example is a Node.js workflow that stops with `Cannot find module 'pdfkit'`. In the real demo, I submitted *TODO_EXACT_INPUT_USED*. ActionFix returned *TODO_EXACT_ACTUAL_OUTPUT_SUMMARY*. The suggested next action was *TODO_ACTUAL_SUGGESTION*, and I verified its usefulness by *TODO_ACTUAL_VERIFICATION*. Do not use this paragraph to claim a successful result unless the real app actually produced it.
+
+For a second demonstration, I submitted an ambiguous error: *TODO_SECOND_REAL_INPUT*. The agent responded *TODO_SECOND_ACTUAL_RESULT*. I included this case because the ability to ask a good follow-up question can be just as important as quickly generating an answer.
+
+== What I learned and what comes next
+
+The most interesting lesson from this project is that a useful agent should be judged by how understandable its next action feels, not merely by how many words it generates. A narrow task, structured tools, good boundaries, and visible evidence can make a small application more trustworthy. Building for beginners also means writing error messages for humans instead of repeating technical jargon.
+
+The MVP is intentionally read-only. A future version might integrate GitHub OAuth with carefully scoped permissions to fetch workflow logs on a user's request, generate draft pull requests for review, and keep a searchable knowledge base of common failures. Those are *future ideas*, not features claimed in this weekend submission.
+
+For this challenge, I focused on a small, inspectable experience: paste the failure, understand the reason, and take one safer first step. If it helps even one newcomer move from "I have no idea what this log means" to "I know what to check next," that is the outcome I wanted.
+
+== Links and tags
+
+* Source: TODO_REAL_PUBLIC_GITHUB_URL
+* Demo: TODO_REAL_LIVE_APP_URL
+* Challenge tag: `agents` (also add `agent` in the Builder Center tag selector if supported)
+
+// PRE-PUBLISH REMINDERS:
+// 1. Remove every TODO and all author-only notes.
+// 2. Convert the article to Builder Center's accepted rich text/Markdown format.
+// 3. Capture actual evidence and ensure public access throughout judging.
+// 4. Check the finished word count >= 500.
+// 5. Do not assert untested functionality or invented user feedback.
